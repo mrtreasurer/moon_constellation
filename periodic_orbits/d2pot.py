@@ -80,10 +80,10 @@ def d2u_dx2(pos, r_c, mu, c, s, n_max, m_max):
                 p_sum += rc_rn * p[n, m + 1] * (m + n + 1) * bnm
 
                 if m >= 1:
-                    q_sum += rc_rn * p[n, m + 1] * \
+                    q_sum += rc_rn * p[n, m + 1] * m * \
                         (c[n, m] * cm[m - 1] + s[n, m] * sm[m - 1])
 
-                    r_sum -= rc_rn * p[n, m + 1] * \
+                    r_sum -= rc_rn * p[n, m + 1] * m * \
                         (c[n, m] * sm[m - 1] - s[n, m] * cm[m - 1])
 
                     s_sum += rc_rn * (m + n + 1) * p[n, m] * m * \
@@ -107,16 +107,24 @@ def d2u_dx2(pos, r_c, mu, c, s, n_max, m_max):
     g = -(m_sum*sin_phi + p_sum + h_sum)
     y = np.array([s_sum, t_sum, 0])
     d = sin_phi*alpha + y
+    
+    arr1 = np.column_stack((pos_r, alpha))
+    arr2 = np.array([[f, g], [g, m_sum]])
+    arr3 = np.row_stack((pos_r, alpha))
+    
+    term1 = np.dot(np.dot(arr1, arr2), arr3)
+    
+    arr4 = np.column_stack((pos_r, d))
+    arr5 = np.array([[0., -1.], [-1., 0.]])
+    arr6 = np.row_stack((pos_r, d))
+   
+    term2 = np.dot(np.dot(arr4, arr5), arr6)
+    
+    term3 = np.array([[n_sum - lamb, -o_sum, q_sum],
+                      [-o_sum, -(n_sum + lamb), r_sum],
+                      [q_sum, r_sum, -lamb]])
 
-    ddu = mu/r**3 * (np.dot(np.dot(np.column_stack((pos_r, alpha)),
-                                   np.array([[f, g], [g, m_sum]])),
-                            np.row_stack((pos_r, alpha)))
-                     + np.dot(np.dot(np.column_stack((pos_r, d)),
-                                     np.array([[0., -1.], [-1., 0.]])),
-                              np.row_stack((pos_r, d)))
-                     + np.array([[n_sum - lamb, -o_sum, q_sum],
-                                 [-o_sum, -(n_sum + lamb), r_sum],
-                                 [q_sum, r_sum, -lamb]]))
+    ddu = mu/r**3 * (term1 + term2 + term3) 
 
     return ddu
 
@@ -132,5 +140,5 @@ if __name__ == "__main__":
 
     print(d2u_dx2(pos, cte.r_n, cte.mu_n, cte.cos, cte.sin, cte.degree, cte.order))
 
-    for n in range(cte.degree):
-        dacc = d2u_dx2(pos, cte.r_n, cte.mu_n, cte.cos, cte.sin, cte.degree, cte.degree)
+#    for n in range(cte.degree):
+#        dacc = d2u_dx2(pos, cte.r_n, cte.mu_n, cte.cos, cte.sin, cte.degree, cte.degree)

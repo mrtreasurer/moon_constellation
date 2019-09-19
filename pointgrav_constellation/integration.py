@@ -2,8 +2,6 @@
 
 import numpy as np
 
-#from numba import jit
-
 
 #@jit
 def rk4(t, x0, f):

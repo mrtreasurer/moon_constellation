@@ -21,17 +21,6 @@ from d2pot import d2u_dx2
 from potential import potential
 
 
-def terminate(t, state):
-    if t >= 2*np.pi:
-        return state[2]
-
-    else:
-        return 1
-
-
-eps = 1e-6
-dist = 1e-11
-
 x0 = -1.311519120505e-2
 y0 = 5.435394815081e-4
 z0 = 0.
@@ -42,6 +31,22 @@ w0 = 9.077797920947e-1
 
 state0 = np.array([x0, y0, z0, u0, v0, w0])
 
+a, e, i, raan, aop, ea = pk.core.ic2par(state0[0:3], state0[3:6], cte.mu_n)
+period = 2*np.pi * np.sqrt(a**3/cte.mu_n)
+
+end_time = 2*np.pi
+
+def terminate(t, state):
+    if t >= end_time:
+        return state[2]
+
+    else:
+        return 1
+
+
+eps = 1e-6
+dist = 1e-11
+
 u0 = potential(state0[0:3], cte.r_n, cte.mu_n, cte.cos, cte.sin, cte.degree, cte.order)
 c0 = jacobian(state0, cte.mu_n, u0)
 
@@ -50,17 +55,11 @@ iteration = 0
 converged = False
 while not converged:
     print(f"Iteration: {iteration}")
-    
-    a, e, i, raan, aop, ea = pk.core.ic2par(state0[0:3], state0[3:6], cte.mu_n)
-    if e > 0.5:
-        raise ValueError(f"eccentricity too big: {e}")
-
-    period = 2*np.pi * np.sqrt(a**3/cte.mu_n)
 
     terminate.terminal = True
     terminate.direction = state0[5]
 
-    solution = solve_ivp(dx_dt, (0, period), state0, events=terminate, rtol=1e-10, atol=1e-10)
+    solution = solve_ivp(dx_dt, (0, 1.2*end_time), state0, events=terminate, rtol=1e-10, atol=1e-10)
     print(solution.message)
 
     state_hist = np.transpose(solution.y)
@@ -70,15 +69,15 @@ while not converged:
 
     state_t = r_state_hist[-1]
     
-    plt.figure(1)
-    ax = plt.axes(projection='3d')
-    ax.plot(r_state_hist[:, 0], r_state_hist[:, 1], r_state_hist[:, 2])
-    ax.plot([0], [0], [0], "ko")
-    ax.plot([state0[0]], [state0[1]], [state0[2]], "o")
-    ax.plot([state_t[0]], [state_t[1]], [state_t[2]], "o")
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    ax.set_zlabel("z")
+#    plt.figure(1)
+#    ax = plt.axes(projection='3d')
+#    ax.plot(r_state_hist[:, 0], r_state_hist[:, 1], r_state_hist[:, 2])
+#    ax.plot([0], [0], [0], "ko")
+#    ax.plot([state0[0]], [state0[1]], [state0[2]], "o")
+#    ax.plot([state_t[0]], [state_t[1]], [state_t[2]], "o")
+#    ax.set_xlabel("x")
+#    ax.set_ylabel("y")
+#    ax.set_zlabel("z")
     
     ut = potential(state_t[0:3], cte.r_n, cte.mu_n, cte.cos, cte.sin, cte.degree, cte.order)
     c_t = jacobian(state_t, cte.mu_n, ut)
@@ -118,40 +117,39 @@ while not converged:
             phidot = np.dot(df_dx, phi)
             phi += phidot * dt
             
-            break
-    break
+#    break
 
-#        det = np.delete(dx_dt(time_hist[-1], state_t), 2)
-#
-#        det_de0 = np.delete(np.delete(phi, 2, 0), 2, 1) - 1/state_t[5]*det*np.delete(phi[2], 2)
-#
-#        print("svd")
-#        
-#        dk = np.zeros((6, 5))
-#        dk[0:5, 0:5] = det_de0 - np.eye(5)
-#
-#        acc = pk.util.gravity_spherical_harmonic(np.array([state0[0:3]]), cte.r_n, cte.mu_n, cte.cos, cte.sin, cte.degree, cte.order)
-#        dc = d_jac(state0, cte.mu_n, acc[0])
-#
-#        dk[5] = np.delete(dc, 2)
-#
-#        u, d, vt = np.linalg.svd(dk)
-#        
-#        print("State update")
-#
-#        flat_s = np.zeros(d.shape)
-#        for i, a in enumerate(d):
-#            if a > eps:
-#                flat_s[i] = 1/a
-#
-#            else:
-#                flat_s[i] = 0
-#
-#        s = np.column_stack((np.diag(flat_s), np.zeros(5)))
-#
-#        v = np.transpose(vt)
-#        delta_state0 = np.insert(-np.dot(np.linalg.multi_dot([v, s, np.transpose(u)]), k), 2, 0)
-#
-#        state0 += delta_state0
-#        
-#        iteration += 1
+        det = np.delete(dx_dt(time_hist[-1], state_t), 2)
+
+        det_de0 = np.delete(np.delete(phi, 2, 0), 2, 1) - 1/state_t[5]*det*np.delete(phi[2], 2)
+
+        print("svd")
+        
+        dk = np.zeros((6, 5))
+        dk[0:5, 0:5] = det_de0 - np.eye(5)
+
+        acc = pk.util.gravity_spherical_harmonic(np.array([state0[0:3]]), cte.r_n, cte.mu_n, cte.cos, cte.sin, cte.degree, cte.order)
+        dc = d_jac(state0, cte.mu_n, acc[0])
+
+        dk[5] = np.delete(dc, 2)
+
+        u, d, vt = np.linalg.svd(dk)
+        
+        print("State update")
+
+        flat_s = np.zeros(d.shape)
+        for i, a in enumerate(d):
+            if a > eps:
+                flat_s[i] = 1/a
+
+            else:
+                flat_s[i] = 0
+
+        s = np.column_stack((np.diag(flat_s), np.zeros(5)))
+
+        v = np.transpose(vt)
+        delta_state0 = np.insert(-np.dot(np.linalg.multi_dot([v, s, np.transpose(u)]), k), 2, 0)
+
+        state0 += delta_state0
+        
+        iteration += 1
