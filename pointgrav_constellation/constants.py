@@ -14,7 +14,7 @@ mu_e = 3.98600441e14  # m3/s2
 mu_s = 1.327178e20  # m3/s2
 
 moon_period = 2*np.pi * np.sqrt(r_em**3/(mu_e + mu_m))  # s
-earth_period = 2*np.pi * np.sqrt(r_es**3/(mu_s + mu_m))  # s
+earth_period = 2*np.pi * np.sqrt(r_es**3/(mu_s + mu_m + mu_e))  # s
 
 dt = 60  # s
 
@@ -22,8 +22,7 @@ omega_moon = 2*np.pi / moon_period  # rad/s
 omega_earth = 2*np.pi / earth_period # rad/s
 
 # (lat [deg], lon [deg])
-_target_coors_deg = np.array([[0, 0],
-                              [58.1, 309.1],
+_target_coors_deg = np.array([[58.1, 309.1],
                               [43.914, 25.148],
                               [30.76515, 20.19069],
                               [14, 303.5],

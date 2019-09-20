@@ -1,0 +1,4 @@
+.spyproject
+.vscode
+periodic_orbits/__pycache__
+pointgrav_constellation/__pycache__
