@@ -43,7 +43,7 @@ aop = 0
 sat_point_acc = 0.1e-6  # rad
 sat_n_las = 0.4
 sat_n_geom = 0.8
-sat_las_power = 8e3  # W
+sat_las_power = 7.79e3  # W
 
 tar_op_power = 150  # W
 tar_battery_cap = 500  # Whr
