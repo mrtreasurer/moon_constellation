@@ -1,34 +1,46 @@
 # -*- coding: utf-8 -*-
 
+import numpy as np
 import pygmo as pg
+
+from matplotlib import pyplot as plt
+
+import constants as cte
 
 from optim_class import Coverage, initiate
 
-def optimize():
-    sim_time, sun_pos, targets = initiate()
+sim_time, sun_pos, targets = initiate()
 
-    # 1 - Instantiate a pygmo problem constructing it from a UDP
-    # (user defined problem).
-    prob = pg.problem(Coverage(sim_time, sun_pos, targets))
+# 1 - Instantiate a pygmo problem constructing it from a UDP
+# (user defined problem).
+coverage = Coverage(sim_time, sun_pos, targets)
 
-    # 2 - Instantiate a pagmo algorithm
-    algo = pg.algorithm(pg.sade(gen=100))
+prob = pg.problem(coverage)
 
-    # 3 - Instantiate an archipelago with 16 islands having each 20 individuals
-    archi = pg.archipelago(1, algo=algo, prob=prob, pop_size=7)
+# 2 - Instantiate a pagmo algorithm
+algo = pg.algorithm(pg.gaco(gen=100))
 
-    # 4 - Run the evolution in parallel on the 16 separate islands 10 times.
-    archi.evolve(1)  
+# 3 - Instantiate an archipelago with 16 islands having each 20 individuals
+archi = pg.archipelago(1, algo=algo, prob=prob, pop_size=7)
 
-    # 5 - Wait for the evolutions to be finished
-    archi.wait()
+# 4 - Run the evolution in parallel on the 16 separate islands 10 times.
+archi.evolve(1)  
 
-    # 6 - Print the fitness of the best solution in each island
+# 5 - Wait for the evolutions to be finished
+archi.wait()
+
+# 6 - Print the fitness of the best solution in each island
+res = None
+fit = 100
+for isl in archi:
+    if fit < isl.get_population().champion_f:
+        fit = isl.get_population().champion_f
+        res = isl.get_population().champion_x
  
- sats = coverage.create_constellation(res.x[0], res.x[1], int(2*np.pi//res.x[2]), int(2*np.pi//res.x[3]))
-charge = coverage.propagate_constellation(sun, targets, sats, cte.r_m, res.x[0], cte.min_elev, cte.max_sat_range, cte.tar_battery_cap, cte.tar_charge_power - cte.tar_op_power, cte.dt, cte.sat_las_power, cte.tar_hib_power)[0]
+sats = coverage.create_constellation(res[0], res[1], int(2*np.pi//res[2]), int(2*np.pi//res[3]))
+charge = coverage.propagate_constellation(sun_pos, targets, sats, cte.r_m, res[0], cte.min_elev, cte.max_sat_range, cte.tar_battery_cap, cte.tar_charge_power - cte.tar_op_power, cte.dt, cte.sat_las_power, cte.tar_hib_power)[0]
 
-sat_period = 2*np.pi * np.sqrt(res.x[0]**3/cte.mu_m)
+sat_period = 2*np.pi * np.sqrt(res[0]**3/cte.mu_m)
 
 plt.figure(1)
 ax = plt.axes(projection='3d')

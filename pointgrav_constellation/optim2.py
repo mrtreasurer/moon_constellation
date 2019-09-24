@@ -11,7 +11,7 @@ from optim_class import Coverage, initiate
 sim_time, sun, targets = initiate()
 coverage = Coverage(sim_time, sun, targets)
 
-res = minimize(coverage.fitness, np.array([cte.h_crit, np.radians(50), 2*np.pi/4, 2*np.pi/3]), method="Powell")
+res = minimize(coverage.fitness, np.array([cte.h_crit, np.radians(50), 2*np.pi/4, 2*np.pi/3]), method="Nelder-Mead")
 print(res.x, res.fun)
 
 sats = coverage.create_constellation(res.x[0], res.x[1], int(2*np.pi//res.x[2]), int(2*np.pi//res.x[3]))
@@ -53,3 +53,5 @@ for i in range(targets.shape[1]):
 #for i in range(cos_elev.shape[1]):
 #    plt.subplot(2, 4, i + 1)
 #    plt.plot(sim_time, cos_elev[:, i])
+
+plt.show()

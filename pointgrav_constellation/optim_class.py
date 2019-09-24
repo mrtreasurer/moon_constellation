@@ -20,33 +20,63 @@ def initiate():
 
 
 class Coverage:
-    def __init__(self, time, sun, targets):
-        self.sim_time = np.arange(0, cte.moon_period + cte.dt, cte.dt)
-        #sim_time = np.arange(0, 2*np.pi*np.sqrt(cte.h_crit**3/cte.mu_m), cte.dt)
+    def __init__(self, time, sun, targets, r_m, mu_m, dt, min_elev, max_sat_range, ecc, aop, tar_battery_cap, tar_charge_power, sat_las_power, hib_power, sat_point_acc, tar_r_rec, sat_n_las, sat_n_geom, tar_n_rec):
+        self.sim_time = time
         
-        self.sun_pos = d.sun_loc(self.sim_time, cte.omega_earth, cte.sun_pos0)
+        self.sun = sun
         
-        self.targets = tgt.create_targets(cte.target_coors, self.sim_time, cte.omega_moon)
+        self.targets = targets
+
+        self.r_m = r_m
+        self.min_elev = min_elev
+        self.max_sat_range = max_sat_range
+
+        self.tar_battery_cap = tar_battery_cap
+        self.tar_charge_power = tar_charge_power
+
+        self.dt = dt
+
+        self.sat_las_power = sat_las_power
+
+        self.hib_power = hib_power
+
+        self.ecc = ecc
+        self.aop = aop
+        self.mu_m = mu_m
+
+        self.sat_point_acc = sat_point_acc
+        self.tar_r_rec = tar_r_rec
+        self.sat_n_las = sat_n_las
+        self.sat_n_geom = sat_n_geom
+        self.tar_n_rec = tar_n_rec
                 
     def fitness(self, x):
         sma = x[0]
         inc = x[1]
-        plane_sep = x[2]
-        sat_sep = x[3]
+        # plane_sep = x[2]
+        # sat_sep = x[3]
         
-        n_planes = int(2*np.pi // plane_sep)
-        n_sats_plane = int(2*np.pi // sat_sep)
+        # n_planes = int(2*np.pi // plane_sep)
+        # n_sats_plane = int(2*np.pi // sat_sep)
+
+        n_planes = int(x[2])
+        n_sats_plane = int(x[3])
                 
         sats = self.create_constellation(sma, inc, n_planes, n_sats_plane)
         
-        charge = self.propagate_constellation(self.sun_pos, self.targets, sats, cte.r_m, sma, cte.min_elev, cte.max_sat_range, cte.tar_battery_cap, cte.tar_charge_power - cte.tar_op_power, cte.dt, cte.sat_las_power, cte.tar_hib_power)[0]
+        charge = self.propagate_constellation(sats, sma)[0]
+
+        min_charge = np.min(charge)
         
-        fitness = (n_planes * n_sats_plane) * 1/float(np.mean(charge))
+        fitness = (n_planes * n_sats_plane) * 1/float(np.mean(charge)) * (1 + 99 * (min_charge < 0.1*self.tar_battery_cap))
         
-        return fitness
+        return [fitness]
+
+    def get_nix(self):
+        return 2
     
     def get_bounds(self):
-        return ([cte.r_m, 0, 2*np.pi/8, 2*np.pi/8], [cte.max_sat_range, np.pi/2, np.pi, np.pi])
+        return ([self.r_m, np.pi/4, 1, 1], [self.max_sat_range, np.pi/2, 5, 5])
 
     def create_constellation(self, sma, inc, n_planes, n_sats_plane):        
         raan = np.repeat(np.linspace(0, 2*np.pi, n_planes + 1)[:-1], n_sats_plane)
@@ -54,45 +84,44 @@ class Coverage:
         
         kep = np.empty((n_planes * n_sats_plane, 6))
         kep[:, 0] = sma
-        kep[:, 1] = cte.ecc
+        kep[:, 1] = self.ecc
         kep[:, 2] = inc
         kep[:, 3] = raan
-        kep[:, 4] = cte.aop
+        kep[:, 4] = self.aop
         kep[:, 5] = ta
         
-        sats = sps.create_sats(kep, cte.mu_m, self.sim_time)
+        sats = sps.create_sats(kep, self.mu_m, self.sim_time)
         
         return sats
     
-    @staticmethod
-    def propagate_constellation(sun, targets, sats, r_m, sma, min_elev, max_range, bat_cap, charge_power, dt, sat_power, hib_power):
-        cos_min_elev = np.cos(min_elev)
-        sin_rho = r_m / sma
+    def propagate_constellation(self, sats, sma):
+        cos_min_elev = np.cos(self.min_elev)
+        sin_rho = self.r_m / sma
         sin_max_nadir = sin_rho * cos_min_elev
-        cos_max_lambda = np.cos(np.pi/2 - min_elev - np.arcsin(sin_max_nadir))
+        cos_max_lambda = np.cos(np.pi/2 - self.min_elev - np.arcsin(sin_max_nadir))
         
-        dist_vec = np.empty((targets.shape[0], targets.shape[1], sats.shape[1], 3))
+        dist_vec = np.empty((self.targets.shape[0], self.targets.shape[1], sats.shape[1], 3))
         
         for i in range(sats.shape[1]):
-            dist_vec[:, :, i] = np.transpose(np.stack([np.subtract(sats[:, i], targets[:, j]) for j in range(targets.shape[1])]), (1, 0, 2))
+            dist_vec[:, :, i] = np.transpose(np.stack([np.subtract(sats[:, i], self.targets[:, j]) for j in range(self.targets.shape[1])]), (1, 0, 2))
             
         dist = np.linalg.norm(dist_vec, axis=3)
         
-        einsum_targets = np.sqrt(np.einsum("ijm,ijm->ij", targets, targets))
+        einsum_targets = np.sqrt(np.einsum("ijm,ijm->ij", self.targets, self.targets))
         einsum_sats = np.sqrt(np.einsum("ijm,ijm->ij", sats, sats))
         
-        cos_lambda = np.einsum("ijk,imk->imj", sats, targets) / \
-        (np.concatenate([einsum_sats[:, None, :]]*targets.shape[1], axis=1) * \
+        cos_lambda = np.einsum("ijk,imk->imj", sats, self.targets) / \
+        (np.concatenate([einsum_sats[:, None, :]]*self.targets.shape[1], axis=1) * \
          np.concatenate([einsum_targets[:, :, None]]*sats.shape[1], axis=2))
         
-        contact = (cos_lambda > cos_max_lambda) * (dist < max_range)
+        contact = (cos_lambda > cos_max_lambda) * (dist < self.max_sat_range)
         
-        eff = d.link_eff(dist, cte.sat_point_acc, cte.tar_r_rec, cte.sat_n_las, cte.sat_n_geom, cte.tar_n_rec)
+        eff = d.link_eff(dist, self.sat_point_acc, self.tar_r_rec, self.sat_n_las, self.sat_n_geom, self.tar_n_rec)
         
-        einsum_sun = np.sqrt(np.einsum("ij,ij->i", sun, sun))
+        einsum_sun = np.sqrt(np.einsum("ij,ij->i", self.sun, self.sun))
         
-        cos_sun_angle_t = np.einsum("ik,ijk->ij", sun, targets) / \
-        (np.concatenate([einsum_sun[:, None]]*targets.shape[1], axis=1) * 
+        cos_sun_angle_t = np.einsum("ik,ijk->ij", self.sun, self.targets) / \
+        (np.concatenate([einsum_sun[:, None]]*self.targets.shape[1], axis=1) * 
          einsum_targets)
         
         targets_in_sunlight = cos_sun_angle_t > 0
@@ -104,13 +133,13 @@ class Coverage:
     #    sats_in_sunlight = (cos_sun_angle_s > 0) + (np.sqrt(1 - cos_sun_angle_s**2) > r_m/sma)
     
         n_targets = np.sum(contact * np.logical_not(targets_in_sunlight)[:, :, None], axis=1)
-        sps_power = np.sum((eff * sat_power / np.clip(np.transpose([n_targets]*eff.shape[1], (1, 0, 2)), 1, np.inf)) * contact, axis=2) * np.logical_not(targets_in_sunlight)
+        sps_power = np.sum((eff * self.sat_las_power / np.clip(np.transpose([n_targets]*eff.shape[1], (1, 0, 2)), 1, np.inf)) * contact, axis=2) * np.logical_not(targets_in_sunlight)
         
-        target_charge = np.empty((targets.shape[0:2]))
-        target_charge[0] = bat_cap
+        target_charge = np.empty((self.targets.shape[0:2]))
+        target_charge[0] = self.tar_battery_cap
         
-        for i in range(1, targets.shape[0]):
-            target_charge[i] = np.clip(target_charge[i-1] + np.logical_not(targets_in_sunlight[i]) * (sps_power[i] - hib_power) * dt/3600 + targets_in_sunlight[i] * charge_power * dt/3600, 0, bat_cap)
+        for i in range(1, self.targets.shape[0]):
+            target_charge[i] = np.clip(target_charge[i-1] + np.logical_not(targets_in_sunlight[i]) * (sps_power[i] - self.hib_power) * self.dt/3600 + targets_in_sunlight[i] * self.tar_charge_power * self.dt/3600, 0, self.tar_battery_cap)
             # target_charge[i] = np.clip(target_charge[i-1], 0, bat_cap)        
         
         return target_charge, n_targets, sps_power, contact, targets_in_sunlight
@@ -118,26 +147,20 @@ class Coverage:
 
 if __name__ == "__main__":
     from matplotlib import pyplot as plt
-    
-    # sma = cte.h_crit
-    # inc = np.radians(50)
-    
-    # n_planes = 4
-    # n_sats_plane = 3
 
-    sma = 3.03328834e6
-    inc = 8.9850954e-1
+    sma = 2.49063644e6
+    inc = 1.56008564
 
-    n_planes = int(2*np.pi//1.69959466)
-    n_sats_plane = int(2*np.pi//2.13067231)
+    n_planes = 1
+    n_sats_plane = 1
     
     sim_time, sun, targets_pos = initiate()
     
-    coverage = Coverage(sim_time, sun, targets_pos)
+    coverage = Coverage(sim_time, sun, targets_pos, cte.r_m, cte.mu_m, cte.dt, cte.min_elev, cte.max_sat_range, cte.ecc, cte.aop, cte.tar_battery_cap, cte.tar_charge_power, cte.sat_las_power, cte.tar_hib_power, cte.sat_point_acc, cte.tar_r_rec, cte.sat_n_las, cte.sat_n_geom, cte.tar_n_rec)
             
     sats = coverage.create_constellation(sma, inc, n_planes, n_sats_plane)
     
-    charge, n_targets, sps_power, contact, targets_in_sunlight = coverage.propagate_constellation(coverage.sun_pos, coverage.targets, sats, cte.r_m, sma, cte.min_elev, cte.max_sat_range, cte.tar_battery_cap, cte.tar_charge_power - cte.tar_op_power, cte.dt, cte.sat_las_power, cte.tar_hib_power)
+    charge, n_targets, sps_power, contact, targets_in_sunlight = coverage.propagate_constellation(sats, sma)
         
     plt.figure(2)
     for i in range(targets_pos.shape[1]):

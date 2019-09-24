@@ -28,7 +28,7 @@ def create_sats(kep0, mu_m, sim_time):
             
         else:
             mean_motion = np.sqrt(mu_m/k0[0]**3)
-            ta = mean_motion * sim_time % (2*np.pi)
+            ta = (k0[5] + mean_motion * sim_time) % (2*np.pi)
             
             k = np.empty((sim_time.shape[0], 6))
             for j in range(k0.shape[0] - 1):
