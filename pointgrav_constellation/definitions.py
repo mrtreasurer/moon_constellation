@@ -20,7 +20,10 @@ def sun_loc(sim_time, omega, pos0):
     return state[:, :, 0]
 
 
-def link_eff(dist, point_acc, r_rec, n_las, n_geom, n_rec):
-    n_trans = np.minimum((1/3)**2, (r_rec/(point_acc*dist))**2) * 1/(1 - np.e**(-2))
+def link_eff(dist, point_acc, r_rec, n_las, n_geom, n_rec, wavelength, r_trans):
+    r_beam = r_rec + np.sqrt(1 + (wavelength * dist / (np.pi * r_trans**2))**2)
+
+    n_trans = np.minimum((r_rec/r_beam)**2, (r_rec/(point_acc*dist))**2) * 1/(1 - np.e**(-2))
+    # n_trans = np.minimum((1/3)**2, (r_rec/(point_acc*dist))**2) * 1/(1 - np.e**(-2))
     
     return n_las * n_trans * n_geom * n_rec

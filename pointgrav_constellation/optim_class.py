@@ -9,7 +9,7 @@ import targets as tgt
 
 
 def initiate():
-    sim_time = np.arange(0, cte.moon_period + cte.dt, cte.dt)
+    sim_time = np.arange(0, cte.synodic_period + cte.dt, cte.dt)
     #sim_time = np.arange(0, 2*np.pi*np.sqrt(cte.h_crit**3/cte.mu_m), cte.dt)
     
     sun_pos = d.sun_loc(sim_time, cte.omega_earth, cte.sun_pos0)
@@ -20,7 +20,7 @@ def initiate():
 
 
 class Coverage:
-    def __init__(self, time, sun, targets, r_m, mu_m, dt, min_elev, max_sat_range, ecc, aop, tar_battery_cap, tar_charge_power, sat_las_power, hib_power, sat_point_acc, tar_r_rec, sat_n_las, sat_n_geom, tar_n_rec):
+    def __init__(self, time, sun, targets, r_m, mu_m, dt, min_elev, max_sat_range, ecc, aop, tar_battery_cap, tar_charge_power, sat_las_power, hib_power, sat_point_acc, tar_r_rec, sat_n_las, sat_n_geom, tar_n_rec, wavelength, r_trans):
         self.sim_time = time
         
         self.sun = sun
@@ -49,6 +49,9 @@ class Coverage:
         self.sat_n_las = sat_n_las
         self.sat_n_geom = sat_n_geom
         self.tar_n_rec = tar_n_rec
+
+        self.wavelength = wavelength
+        self.r_trans = r_trans
                 
     def fitness(self, x):
         sma = x[0]
@@ -68,9 +71,31 @@ class Coverage:
 
         min_charge = np.min(charge)
         
-        fitness = (n_planes * n_sats_plane) * 1/float(np.mean(charge)) * (1 + 99 * (min_charge < 0.1*self.tar_battery_cap))
+        fitness = (n_planes * n_sats_plane) + 1/float(np.mean(charge)) + (10 * (min_charge < 0.1*self.tar_battery_cap))
         
         return [fitness]
+
+    def fitness_2d(self, x, n_planes, n_sats_plane):
+        sma = x[0]
+        inc = x[1]
+        # plane_sep = x[2]
+        # sat_sep = x[3]
+        
+        # n_planes = int(2*np.pi // plane_sep)
+        # n_sats_plane = int(2*np.pi // sat_sep)
+
+        # n_planes = int(x[2])
+        # n_sats_plane = int(x[3])
+                
+        sats = self.create_constellation(sma, inc, n_planes, n_sats_plane)
+        
+        charge = self.propagate_constellation(sats, sma)[0]
+
+        min_charge = np.min(charge)
+        
+        fitness = (n_planes * n_sats_plane) + 1/float(np.mean(charge)) + (10 * (min_charge < 0.1*self.tar_battery_cap))
+        
+        return fitness
 
     def get_nix(self):
         return 2
@@ -116,7 +141,7 @@ class Coverage:
         
         contact = (cos_lambda > cos_max_lambda) * (dist < self.max_sat_range)
         
-        eff = d.link_eff(dist, self.sat_point_acc, self.tar_r_rec, self.sat_n_las, self.sat_n_geom, self.tar_n_rec)
+        eff = d.link_eff(dist, self.sat_point_acc, self.tar_r_rec, self.sat_n_las, self.sat_n_geom, self.tar_n_rec, self.wavelength, self.r_trans)
         
         einsum_sun = np.sqrt(np.einsum("ij,ij->i", self.sun, self.sun))
         
@@ -142,29 +167,50 @@ class Coverage:
             target_charge[i] = np.clip(target_charge[i-1] + np.logical_not(targets_in_sunlight[i]) * (sps_power[i] - self.hib_power) * self.dt/3600 + targets_in_sunlight[i] * self.tar_charge_power * self.dt/3600, 0, self.tar_battery_cap)
             # target_charge[i] = np.clip(target_charge[i-1], 0, bat_cap)        
         
-        return target_charge, n_targets, sps_power, contact, targets_in_sunlight
+        return target_charge, dist, eff, contact
     
 
 if __name__ == "__main__":
     from matplotlib import pyplot as plt
 
-    sma = 2.49063644e6
-    inc = 1.56008564
+    sma = 2.47032424e6
+    inc = 1.08265014
 
-    n_planes = 1
+    n_planes = 5
     n_sats_plane = 1
     
     sim_time, sun, targets_pos = initiate()
     
-    coverage = Coverage(sim_time, sun, targets_pos, cte.r_m, cte.mu_m, cte.dt, cte.min_elev, cte.max_sat_range, cte.ecc, cte.aop, cte.tar_battery_cap, cte.tar_charge_power, cte.sat_las_power, cte.tar_hib_power, cte.sat_point_acc, cte.tar_r_rec, cte.sat_n_las, cte.sat_n_geom, cte.tar_n_rec)
+    coverage = Coverage(sim_time, sun, targets_pos, cte.r_m, cte.mu_m, cte.dt, cte.min_elev, cte.max_sat_range, cte.ecc, cte.aop, cte.tar_battery_cap, cte.tar_charge_power, cte.sat_las_power, cte.tar_hib_power, cte.sat_point_acc, cte.tar_r_rec, cte.sat_n_las, cte.sat_n_geom, cte.tar_n_rec, cte.sat_wavelength, cte.sat_r_trans)
             
     sats = coverage.create_constellation(sma, inc, n_planes, n_sats_plane)
     
-    charge, n_targets, sps_power, contact, targets_in_sunlight = coverage.propagate_constellation(sats, sma)
+    print(coverage.fitness([sma, inc, n_planes, n_sats_plane]))
+    charge, dist, eff, contact = coverage.propagate_constellation(sats, sma)
+
+    plt.figure(1)
+    ax = plt.axes(projection='3d')
+
+    sat_period = 2*np.pi * np.sqrt(sma**3/cte.mu_m)
+
+    for i in range(sats.shape[1]):
+        ax.plot(sats[:, i, 0][sim_time < sat_period], sats[:, i, 1][sim_time < sat_period], sats[:, i, 2][sim_time < sat_period], 'b')
+        ax.plot([sats[0, i, 0]], [sats[0, i, 1]], [sats[0, i, 2]], 'bo')
+        
+    for i in range(targets_pos.shape[1]):
+        ax.plot(targets_pos[::100, i, 0], targets_pos[::100, i, 1], targets_pos[::100, i, 2], 'g')
+        ax.plot([targets_pos[0, i, 0]], [targets_pos[0, i, 1]], [targets_pos[0, i, 2]], 'go')
+
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_zlabel("z")
         
     plt.figure(2)
     for i in range(targets_pos.shape[1]):
         plt.subplot(2, 3, i + 1)
         plt.plot(sim_time, charge[:, i])
+
+    plt.figure(3)
+    plt.plot(sim_time[contact[:, 0, 0]], eff[:, 0, 0][contact[:, 0, 0]], '.')
 
     plt.show()

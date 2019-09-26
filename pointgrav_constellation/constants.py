@@ -16,6 +16,8 @@ mu_s = 1.327178e20  # m3/s2
 moon_period = 2*np.pi * np.sqrt(r_em**3/(mu_e + mu_m))  # s
 earth_period = 2*np.pi * np.sqrt(r_es**3/(mu_s + mu_m + mu_e))  # s
 
+synodic_period = moon_period * earth_period / (earth_period - moon_period)
+
 dt = 60  # s
 
 omega_moon = 2*np.pi / moon_period  # rad/s
@@ -44,6 +46,8 @@ sat_point_acc = 0.1e-6  # rad
 sat_n_las = 0.4
 sat_n_geom = 0.8
 sat_las_power = 7.79e3  # W
+sat_wavelength = 1070e-9  # m
+sat_r_trans = np.sqrt(max_sat_range * sat_wavelength / np.pi)  # m
 
 # tar_op_power = 150  # W
 tar_battery_cap = 500  # Whr
@@ -51,4 +55,6 @@ tar_hib_power = 42  # W
 tar_charge_power = 240 - 150  # W
        
 tar_n_rec = 0.5
-tar_r_rec = np.sqrt(1/np.pi)  # m
+tar_r_rec = np.sqrt(1.83/np.pi)  # m
+
+r_beam = tar_r_rec + np.sqrt(1 + (sat_wavelength * max_sat_range / (np.pi * sat_r_trans**2))**2)

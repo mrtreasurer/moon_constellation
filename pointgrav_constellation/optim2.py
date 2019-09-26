@@ -9,13 +9,13 @@ from optim_class import Coverage, initiate
 
 
 sim_time, sun, targets = initiate()
-coverage = Coverage(sim_time, sun, targets)
+coverage = Coverage(sim_time, sun, targets, cte.r_m, cte.mu_m, cte.dt, cte.min_elev, cte.max_sat_range, cte.ecc, cte.aop, cte.tar_battery_cap, cte.tar_charge_power, cte.sat_las_power, cte.tar_hib_power, cte.sat_point_acc, cte.tar_r_rec, cte.sat_n_las, cte.sat_n_geom, cte.tar_n_rec, cte.sat_wavelength, cte.sat_r_trans)
 
-res = minimize(coverage.fitness, np.array([cte.h_crit, np.radians(50), 2*np.pi/4, 2*np.pi/3]), method="Nelder-Mead")
+res = minimize(coverage.fitness_2d, np.array([2.47032424e6, 1.09371314e0]), (5, 1), method="Nelder-Mead")
 print(res.x, res.fun)
 
-sats = coverage.create_constellation(res.x[0], res.x[1], int(2*np.pi//res.x[2]), int(2*np.pi//res.x[3]))
-charge = coverage.propagate_constellation(sun, targets, sats, cte.r_m, res.x[0], cte.min_elev, cte.max_sat_range, cte.tar_battery_cap, cte.tar_charge_power - cte.tar_op_power, cte.dt, cte.sat_las_power, cte.tar_hib_power)[0]
+sats = coverage.create_constellation(res.x[0], res.x[1], 5, 1)
+charge, dist, eff, contact = coverage.propagate_constellation(sats, res.x[0])
 
 sat_period = 2*np.pi * np.sqrt(res.x[0]**3/cte.mu_m)
 
