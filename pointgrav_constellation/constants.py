@@ -42,7 +42,7 @@ h_crit = np.sqrt(r_m**2 + max_sat_range**2 + 2*r_m*max_sat_range*np.sin(min_elev
 ecc = 0
 aop = 0
 
-sat_point_acc = 0.1e-6  # rad
+sat_point_acc = 800e-9  # rad
 sat_n_las = 0.4
 sat_n_geom = 0.8
 sat_las_power = 7.79e3  # W
@@ -57,4 +57,4 @@ tar_charge_power = 240 - 150  # W
 tar_n_rec = 0.5
 tar_r_rec = np.sqrt(1.83/np.pi)  # m
 
-r_beam = tar_r_rec + np.sqrt(1 + (sat_wavelength * max_sat_range / (np.pi * sat_r_trans**2))**2)
+# r_beam = tar_r_rec + np.sqrt(1 + (sat_wavelength * max_sat_range / (np.pi * sat_r_trans**2))**2)

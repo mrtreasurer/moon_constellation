@@ -167,16 +167,16 @@ class Coverage:
             target_charge[i] = np.clip(target_charge[i-1] + np.logical_not(targets_in_sunlight[i]) * (sps_power[i] - self.hib_power) * self.dt/3600 + targets_in_sunlight[i] * self.tar_charge_power * self.dt/3600, 0, self.tar_battery_cap)
             # target_charge[i] = np.clip(target_charge[i-1], 0, bat_cap)        
         
-        return target_charge, dist, eff, contact
+        return target_charge, dist, eff, contact, targets_in_sunlight
     
 
 if __name__ == "__main__":
     from matplotlib import pyplot as plt
 
-    sma = 2.47032424e6
-    inc = 1.08265014
+    sma = 2.54279861e6
+    inc = 1.02596289
 
-    n_planes = 5
+    n_planes = 4
     n_sats_plane = 1
     
     sim_time, sun, targets_pos = initiate()
@@ -186,7 +186,7 @@ if __name__ == "__main__":
     sats = coverage.create_constellation(sma, inc, n_planes, n_sats_plane)
     
     print(coverage.fitness([sma, inc, n_planes, n_sats_plane]))
-    charge, dist, eff, contact = coverage.propagate_constellation(sats, sma)
+    charge, dist, eff, contact, targets_in_sunlight = coverage.propagate_constellation(sats, sma)
 
     plt.figure(1)
     ax = plt.axes(projection='3d')
@@ -194,23 +194,48 @@ if __name__ == "__main__":
     sat_period = 2*np.pi * np.sqrt(sma**3/cte.mu_m)
 
     for i in range(sats.shape[1]):
-        ax.plot(sats[:, i, 0][sim_time < sat_period], sats[:, i, 1][sim_time < sat_period], sats[:, i, 2][sim_time < sat_period], 'b')
-        ax.plot([sats[0, i, 0]], [sats[0, i, 1]], [sats[0, i, 2]], 'bo')
+        arr1 = sats[:, i, 0][sim_time < sat_period]/1e3
+        arr2 = sats[:, i, 1][sim_time < sat_period]/1e3
+        arr3 = sats[:, i, 2][sim_time < sat_period]/1e3
+
+        np.savetxt(f"data/figure1_sats_{i}.csv", np.column_stack((arr1, arr2, arr3)), delimiter=",")
+
+        ax.plot(arr1, arr2, arr3, 'b')
+        ax.plot([arr1[0]], [arr2[0]], [arr3[0]], 'bo')
         
     for i in range(targets_pos.shape[1]):
-        ax.plot(targets_pos[::100, i, 0], targets_pos[::100, i, 1], targets_pos[::100, i, 2], 'g')
-        ax.plot([targets_pos[0, i, 0]], [targets_pos[0, i, 1]], [targets_pos[0, i, 2]], 'go')
+        arr1 = targets_pos[::100, i, 0]/1e3
+        arr2 = targets_pos[::100, i, 1]/1e3
+        arr3 = targets_pos[::100, i, 2]/1e3
 
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    ax.set_zlabel("z")
+        np.savetxt(f"data/figure1_targets_{i}.csv", np.column_stack((arr1, arr2, arr3)), delimiter=",")
+
+        ax.plot(arr1, arr2, arr3, 'g')
+        ax.plot([arr1[0]], [arr2[0]], [arr3[0]], 'go')
+
+    ax.set_xlabel("x [km]")
+    ax.set_ylabel("y [km]")
+    ax.set_zlabel("z [km]")
+
+    plt.savefig("data/figure1")
         
     plt.figure(2)
     for i in range(targets_pos.shape[1]):
         plt.subplot(2, 3, i + 1)
-        plt.plot(sim_time, charge[:, i])
+
+        arr1 = sim_time[np.logical_not(targets_in_sunlight[:, i])]/24/3600
+        arr2 = charge[:, i][np.logical_not(targets_in_sunlight[:, i])]/cte.tar_battery_cap*100
+
+        np.savetxt(f"data/figure2_{i}.csv", np.column_stack((arr1, arr2)))
+
+        plt.plot(arr1, arr2)
+
+        plt.xlabel("Time [days]")
+        plt.ylabel("Battery charge [%]")
+
+    plt.savefig("data/figure2")
 
     plt.figure(3)
     plt.plot(sim_time[contact[:, 0, 0]], eff[:, 0, 0][contact[:, 0, 0]], '.')
 
-    plt.show()
+    # plt.show()
