@@ -8,8 +8,8 @@ import sps
 import targets as tgt
 
 
-def initiate():
-    sim_time = np.arange(0, cte.synodic_period + cte.dt, cte.dt)
+def initiate(end_t):
+    sim_time = np.arange(0, end_t + cte.dt, cte.dt)
     #sim_time = np.arange(0, 2*np.pi*np.sqrt(cte.h_crit**3/cte.mu_m), cte.dt)
     
     sun_pos = d.sun_loc(sim_time, cte.omega_earth, cte.sun_pos0)
@@ -167,7 +167,7 @@ class Coverage:
             target_charge[i] = np.clip(target_charge[i-1] + np.logical_not(targets_in_sunlight[i]) * (sps_power[i] - self.hib_power) * self.dt/3600 + targets_in_sunlight[i] * self.tar_charge_power * self.dt/3600, 0, self.tar_battery_cap)
             # target_charge[i] = np.clip(target_charge[i-1], 0, bat_cap)        
         
-        return target_charge, dist, eff, contact, targets_in_sunlight
+        return target_charge, dist, eff, contact, targets_in_sunlight, n_targets
     
 
 if __name__ == "__main__":
@@ -178,20 +178,20 @@ if __name__ == "__main__":
 
     n_planes = 4
     n_sats_plane = 1
+
+    sat_period = 2*np.pi * np.sqrt(sma**3/cte.mu_m)
     
-    sim_time, sun, targets_pos = initiate()
+    sim_time, sun, targets_pos = initiate(cte.synodic_period)
     
     coverage = Coverage(sim_time, sun, targets_pos, cte.r_m, cte.mu_m, cte.dt, cte.min_elev, cte.max_sat_range, cte.ecc, cte.aop, cte.tar_battery_cap, cte.tar_charge_power, cte.sat_las_power, cte.tar_hib_power, cte.sat_point_acc, cte.tar_r_rec, cte.sat_n_las, cte.sat_n_geom, cte.tar_n_rec, cte.sat_wavelength, cte.sat_r_trans)
             
     sats = coverage.create_constellation(sma, inc, n_planes, n_sats_plane)
     
-    print(coverage.fitness([sma, inc, n_planes, n_sats_plane]))
-    charge, dist, eff, contact, targets_in_sunlight = coverage.propagate_constellation(sats, sma)
+    # print(coverage.fitness([sma, inc, n_planes, n_sats_plane]))
+    charge, dist, eff, contact, targets_in_sunlight, n_targets = coverage.propagate_constellation(sats, sma)
 
     plt.figure(1)
     ax = plt.axes(projection='3d')
-
-    sat_period = 2*np.pi * np.sqrt(sma**3/cte.mu_m)
 
     for i in range(sats.shape[1]):
         arr1 = sats[:, i, 0][sim_time < sat_period]/1e3
@@ -235,7 +235,44 @@ if __name__ == "__main__":
 
     plt.savefig("data/figure2")
 
-    plt.figure(3)
-    plt.plot(sim_time[contact[:, 0, 0]], eff[:, 0, 0][contact[:, 0, 0]], '.')
+    plt.figure(3)      
+    arr1 = sim_time/24/3600
+    arr2 = n_targets[:, 0]
+
+    np.savetxt("data/figure3.csv", np.column_stack((arr1, arr2)))
+
+    plt.plot(arr1, arr2)
+
+    plt.xlabel("Time [days]")
+    plt.ylabel("Number of eclipsed targets in view of satellite")
+
+    plt.savefig("data/figure3")
+
+    plt.figure(4)
+    for i in range(targets_pos.shape[1]):
+        plt.subplot(2, 3, i + 1)
+
+        arr1 = sim_time[np.logical_not(targets_in_sunlight[:, i])]/24/3600
+        arr2 = np.sum(contact[:, i], axis=1)[np.logical_not(targets_in_sunlight[:, i])]
+
+        np.savetxt(f"data/figure4_{i}.csv", np.column_stack((arr1, arr2)))
+
+        plt.plot(arr1, arr2)
+
+        plt.xlabel("Time [days]")
+        plt.ylabel("number of satellites in view during eclipse")
+
+    plt.savefig("data/figure4")
 
     # plt.show()
+
+    duty_cycle = n_targets[:, 0][n_targets[:, 0]>0].shape[0]/n_targets.shape[0]
+    print(f"Duty cycle sat_0 = {duty_cycle}")
+
+    for i in range(targets_pos.shape[1]):
+        charge_ratio = np.sum(np.sum(contact[:, i] * targets_in_sunlight[:, i, None], axis=1) > 0)/np.sum(targets_in_sunlight[:, i])
+        print(f"Charge ratio target_{i} = {charge_ratio}")
+
+        average_sats = np.average(np.sum(contact[:, i], axis=1))
+        print(f"Average sats in range of target_{i} = {average_sats}")
+        
