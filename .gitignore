@@ -2,3 +2,4 @@
 .vscode
 periodic_orbits/__pycache__
 pointgrav_constellation/__pycache__
+pointgrav_constellation/data/tars

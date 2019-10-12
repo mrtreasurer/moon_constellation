@@ -15,8 +15,8 @@ n_sats_plane = 1
 
 sat_period = 2*np.pi * np.sqrt(sma**3/cte.mu_m)
 
-extra_tars = 1
-iterations = 1
+extra_tars = 12
+iterations = 50
 
 results = np.zeros((extra_tars*iterations, 4))
 

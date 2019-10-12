@@ -30,7 +30,7 @@ sma_range = np.arange(cte.optim_sma - 4e5, cte.optim_sma + 6e5, 1e4)
 
 sma_results = np.zeros((sma_range.shape[0], 2))
 for i, sma in enumerate(sma_range):
-    print(f"\rSemi-major Axis: {round(sma/1e3), 2} km", end="")
+    print(f"\rSemi-major Axis: {round(sma/1e3, 2)} km", end="")
 
     sats = coverage.create_constellation(cte.optim_sma, cte.optim_inc, cte.optim_n_planes, cte.optim_n_sats_plane)
     charge, dist, eff, contact, targets_in_sunlight, n_targets = coverage.propagate_constellation(sats, cte.optim_sma)
