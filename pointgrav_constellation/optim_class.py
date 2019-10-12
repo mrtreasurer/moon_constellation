@@ -8,13 +8,13 @@ import sps
 import targets as tgt
 
 
-def initiate(end_t):
-    sim_time = np.arange(0, end_t + cte.dt, cte.dt)
+def initiate(target_coors, sun_pos0, omega_earth, omega_moon, dt, end_t):
+    sim_time = np.arange(0, end_t + dt, dt)
     #sim_time = np.arange(0, 2*np.pi*np.sqrt(cte.h_crit**3/cte.mu_m), cte.dt)
     
-    sun_pos = d.sun_loc(sim_time, cte.omega_earth, cte.sun_pos0)
+    sun_pos = d.sun_loc(sim_time, omega_earth, sun_pos0)
     
-    targets = tgt.create_targets(cte.target_coors, sim_time, cte.omega_moon)
+    targets = tgt.create_targets(target_coors, sim_time, omega_moon)
     
     return sim_time, sun_pos, targets
 
@@ -173,36 +173,34 @@ class Coverage:
 if __name__ == "__main__":
     from matplotlib import pyplot as plt
 
-    sma = 2.54279861e6
-    inc = 1.02596289
-
-    n_planes = 4
-    n_sats_plane = 1
-
-    sat_period = 2*np.pi * np.sqrt(sma**3/cte.mu_m)
+    sat_period = 2*np.pi * np.sqrt(cte.optim_sma**3/cte.mu_m)
     
     sim_time, sun, targets_pos = initiate(cte.synodic_period)
     
     coverage = Coverage(sim_time, sun, targets_pos, cte.r_m, cte.mu_m, cte.dt, cte.min_elev, cte.max_sat_range, cte.ecc, cte.aop, cte.tar_battery_cap, cte.tar_charge_power, cte.sat_las_power, cte.tar_hib_power, cte.sat_point_acc, cte.tar_r_rec, cte.sat_n_las, cte.sat_n_geom, cte.tar_n_rec, cte.sat_wavelength, cte.sat_r_trans)
             
-    sats = coverage.create_constellation(sma, inc, n_planes, n_sats_plane)
+    sats = coverage.create_constellation(cte.optim_sma, cte.optim_inc, cte.optim_n_planes, cte.optim_n_sats_plane)
     
     # print(coverage.fitness([sma, inc, n_planes, n_sats_plane]))
-    charge, dist, eff, contact, targets_in_sunlight, n_targets = coverage.propagate_constellation(sats, sma)
+    charge, dist, eff, contact, targets_in_sunlight, n_targets = coverage.propagate_constellation(sats, cte.optim_sma)
 
-    plt.figure(1)
+    plt.figure(1, dpi=300)
     ax = plt.axes(projection='3d')
 
-    for i in range(sats.shape[1]):
-        arr1 = sats[:, i, 0][sim_time < sat_period]/1e3
-        arr2 = sats[:, i, 1][sim_time < sat_period]/1e3
-        arr3 = sats[:, i, 2][sim_time < sat_period]/1e3
+    ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
 
-        np.savetxt(f"data/figure1_sats_{i}.csv", np.column_stack((arr1, arr2, arr3)), delimiter=",")
+    ax.set_xlabel("x [km]")
+    ax.set_ylabel("y [km]")
+    ax.set_zlabel("z [km]")
 
-        ax.plot(arr1, arr2, arr3, 'b')
-        ax.plot([arr1[0]], [arr2[0]], [arr3[0]], 'bo')
-        
+    ax.xaxis.set_rotate_label(False)
+    ax.yaxis.set_rotate_label(False)
+    ax.zaxis.set_rotate_label(False)
+
+    ax.yaxis.set_label_coords(1000, 1000)
+
     for i in range(targets_pos.shape[1]):
         arr1 = targets_pos[::100, i, 0]/1e3
         arr2 = targets_pos[::100, i, 1]/1e3
@@ -210,16 +208,22 @@ if __name__ == "__main__":
 
         np.savetxt(f"data/figure1_targets_{i}.csv", np.column_stack((arr1, arr2, arr3)), delimiter=",")
 
-        ax.plot(arr1, arr2, arr3, 'g')
-        ax.plot([arr1[0]], [arr2[0]], [arr3[0]], 'go')
+        ax.plot(arr1, arr2, arr3, c='#8262AB', linewidth=1)
+        ax.plot([arr1[0]], [arr2[0]], [arr3[0]], c="#8262AB", marker='o')
+    
+    for i in range(sats.shape[1]):
+        arr1 = sats[:, i, 0][sim_time < sat_period]/1e3
+        arr2 = sats[:, i, 1][sim_time < sat_period]/1e3
+        arr3 = sats[:, i, 2][sim_time < sat_period]/1e3
 
-    ax.set_xlabel("x [km]")
-    ax.set_ylabel("y [km]")
-    ax.set_zlabel("z [km]")
+        np.savetxt(f"data/figure1_sats_{i}.csv", np.column_stack((arr1, arr2, arr3)), delimiter=",")
+
+        ax.plot(arr1, arr2, arr3, c="#285FAC", linewidth=1)
+        ax.plot([arr1[0]], [arr2[0]], [arr3[0]], c="#285FAC", marker="o")
 
     plt.savefig("data/figure1")
         
-    plt.figure(2)
+    plt.figure(2, figsize=(10, 6), dpi=300)
     for i in range(targets_pos.shape[1]):
         plt.subplot(2, 3, i + 1)
 
@@ -228,27 +232,32 @@ if __name__ == "__main__":
 
         np.savetxt(f"data/figure2_{i}.csv", np.column_stack((arr1, arr2)))
 
-        plt.plot(arr1, arr2)
+        plt.plot(arr1, arr2, c="#285FAC")
 
-        plt.xlabel("Time [days]")
-        plt.ylabel("Battery charge [%]")
+        if i in [3, 4, 5]:
+            plt.xlabel("Time [days]")
+        
+        if i in [0, 3]:
+            plt.ylabel("Battery charge [%]")
+
+        plt.yticks([80, 85, 90, 95, 100])
 
     plt.savefig("data/figure2")
 
-    plt.figure(3)      
+    plt.figure(3, dpi=300)      
     arr1 = sim_time/24/3600
     arr2 = n_targets[:, 0]
 
     np.savetxt("data/figure3.csv", np.column_stack((arr1, arr2)))
 
-    plt.plot(arr1, arr2)
+    plt.plot(arr1, arr2, c="#285FAC")
 
     plt.xlabel("Time [days]")
     plt.ylabel("Number of eclipsed targets in view of satellite")
 
     plt.savefig("data/figure3")
 
-    plt.figure(4)
+    plt.figure(4, dpi=300)
     for i in range(targets_pos.shape[1]):
         plt.subplot(2, 3, i + 1)
 
@@ -257,10 +266,13 @@ if __name__ == "__main__":
 
         np.savetxt(f"data/figure4_{i}.csv", np.column_stack((arr1, arr2)))
 
-        plt.plot(arr1, arr2)
+        plt.plot(arr1, arr2, c="#285FAC")
 
-        plt.xlabel("Time [days]")
-        plt.ylabel("number of satellites in view during eclipse")
+        if i in [3, 4, 5]:
+            plt.xlabel("Time [days]")
+        
+        if i in [0, 3]:
+            plt.ylabel("Satellites in view during eclipse [-]")
 
     plt.savefig("data/figure4")
 

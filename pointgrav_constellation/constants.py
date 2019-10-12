@@ -58,3 +58,8 @@ tar_n_rec = 0.5
 tar_r_rec = np.sqrt(1.83/np.pi)  # m
 
 # r_beam = tar_r_rec + np.sqrt(1 + (sat_wavelength * max_sat_range / (np.pi * sat_r_trans**2))**2)
+
+optim_sma = 2.54279861e6
+optim_inc = 1.02596289
+optim_n_planes = 4
+optim_n_sats_plane = 1
