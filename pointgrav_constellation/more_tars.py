@@ -20,8 +20,6 @@ iterations = 50
 
 results = np.zeros((extra_tars*iterations, 4))
 
-# stats = np.zeros((iterations*extra_tars, 3))
-
 for extra in range(1, extra_tars+1):
     total_tars = cte.target_coors.shape[0] + extra
 
@@ -33,9 +31,9 @@ for extra in range(1, extra_tars+1):
         new_coors = []
         for i in range(1, extra + 1):
             coor = [cte.r_m,
-                         np.pi * np.random.random() - np.pi/2,
-                         2*np.pi * np.random.random()
-                         ]
+                    np.pi * np.random.random() - np.pi/2,
+                    2*np.pi * np.random.random()
+                    ]
 
             new_coors.append(coor)
 
@@ -51,7 +49,7 @@ for extra in range(1, extra_tars+1):
         charge, dist, eff, contact, targets_in_sunlight, n_targets = coverage.propagate_constellation(sats, sma)
 
         if np.min(charge) > 0.1*cte.tar_battery_cap:
-            np.savetxt(f"data/tars/targets_{extra}_{iteration}.csv", new_coors, delimiter=",")
+            np.savetxt(f"data/tars/targets_{extra}_{iteration}.csv", np.array(new_coors)[:,1::], delimiter=",")
 
             # plt.figure(1, dpi=300, clear=True)
             # ax = plt.axes(projection='3d')

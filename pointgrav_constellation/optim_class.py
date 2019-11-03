@@ -20,7 +20,7 @@ def initiate(target_coors, sun_pos0, omega_earth, omega_moon, dt, end_t):
 
 
 class Coverage:
-    def __init__(self, time, sun, targets, r_m, mu_m, dt, min_elev, max_sat_range, ecc, aop, tar_battery_cap, tar_charge_power, sat_las_power, hib_power, sat_point_acc, tar_r_rec, sat_n_las, sat_n_geom, tar_n_rec, wavelength, r_trans):
+    def __init__(self, time, sun, targets, r_m, mu_m, dt, min_elev, max_sat_range, ecc, aop, tar_battery_cap, tar_charge_power, tar_max_sps_power, sat_las_power, hib_power, sat_point_acc, tar_r_rec, sat_n_las, sat_n_geom, tar_n_rec, wavelength, r_trans):
         self.sim_time = time
         
         self.sun = sun
@@ -33,6 +33,7 @@ class Coverage:
 
         self.tar_battery_cap = tar_battery_cap
         self.tar_charge_power = tar_charge_power
+        self.tar_max_sps_power = tar_max_sps_power
 
         self.dt = dt
 
@@ -56,12 +57,6 @@ class Coverage:
     def fitness(self, x):
         sma = x[0]
         inc = x[1]
-        # plane_sep = x[2]
-        # sat_sep = x[3]
-        
-        # n_planes = int(2*np.pi // plane_sep)
-        # n_sats_plane = int(2*np.pi // sat_sep)
-
         n_planes = int(x[2])
         n_sats_plane = int(x[3])
                 
@@ -78,14 +73,6 @@ class Coverage:
     def fitness_2d(self, x, n_planes, n_sats_plane):
         sma = x[0]
         inc = x[1]
-        # plane_sep = x[2]
-        # sat_sep = x[3]
-        
-        # n_planes = int(2*np.pi // plane_sep)
-        # n_sats_plane = int(2*np.pi // sat_sep)
-
-        # n_planes = int(x[2])
-        # n_sats_plane = int(x[3])
                 
         sats = self.create_constellation(sma, inc, n_planes, n_sats_plane)
         
@@ -158,8 +145,10 @@ class Coverage:
     #    sats_in_sunlight = (cos_sun_angle_s > 0) + (np.sqrt(1 - cos_sun_angle_s**2) > r_m/sma)
     
         n_targets = np.sum(contact * np.logical_not(targets_in_sunlight)[:, :, None], axis=1)
-        sps_power = np.sum((eff * self.sat_las_power / np.clip(np.transpose([n_targets]*eff.shape[1], (1, 0, 2)), 1, np.inf)) * contact, axis=2) * np.logical_not(targets_in_sunlight)
+        # sps_power = np.sum((eff * self.sat_las_power / np.clip(np.transpose([n_targets]*eff.shape[1], (1, 0, 2)), 1, np.inf)) * contact, axis=2) * np.logical_not(targets_in_sunlight)
         
+        sps_power = np.clip(np.sum((eff * self.sat_las_power / np.clip(np.transpose([n_targets]*eff.shape[1], (1, 0, 2)), 1, np.inf)) * contact, axis=2) * np.logical_not(targets_in_sunlight), 0, self.tar_max_sps_power)
+
         target_charge = np.empty((self.targets.shape[0:2]))
         target_charge[0] = self.tar_battery_cap
         
@@ -173,11 +162,14 @@ class Coverage:
 if __name__ == "__main__":
     from matplotlib import pyplot as plt
 
+
+    save = False
+
     sat_period = 2*np.pi * np.sqrt(cte.optim_sma**3/cte.mu_m)
     
-    sim_time, sun, targets_pos = initiate(cte.synodic_period)
+    sim_time, sun, targets_pos = initiate(cte.target_coors, cte.sun_pos0, cte.omega_earth, cte.omega_moon, cte.dt, cte.synodic_period)
     
-    coverage = Coverage(sim_time, sun, targets_pos, cte.r_m, cte.mu_m, cte.dt, cte.min_elev, cte.max_sat_range, cte.ecc, cte.aop, cte.tar_battery_cap, cte.tar_charge_power, cte.sat_las_power, cte.tar_hib_power, cte.sat_point_acc, cte.tar_r_rec, cte.sat_n_las, cte.sat_n_geom, cte.tar_n_rec, cte.sat_wavelength, cte.sat_r_trans)
+    coverage = Coverage(sim_time, sun, targets_pos, cte.r_m, cte.mu_m, cte.dt, cte.min_elev, cte.max_sat_range, cte.ecc, cte.aop, cte.tar_battery_cap, cte.tar_charge_power, cte.tar_max_sps_power, cte.sat_las_power, cte.tar_hib_power, cte.sat_point_acc, cte.tar_r_rec, cte.sat_n_las, cte.sat_n_geom, cte.tar_n_rec, cte.sat_wavelength, cte.sat_r_trans)
             
     sats = coverage.create_constellation(cte.optim_sma, cte.optim_inc, cte.optim_n_planes, cte.optim_n_sats_plane)
     
@@ -206,7 +198,8 @@ if __name__ == "__main__":
         arr2 = targets_pos[::100, i, 1]/1e3
         arr3 = targets_pos[::100, i, 2]/1e3
 
-        np.savetxt(f"data/figure1_targets_{i}.csv", np.column_stack((arr1, arr2, arr3)), delimiter=",")
+        if save:
+            np.savetxt(f"data/figure1_targets_{i}.csv", np.column_stack((arr1, arr2, arr3)), delimiter=",")
 
         ax.plot(arr1, arr2, arr3, c='#8262AB', linewidth=1)
         ax.plot([arr1[0]], [arr2[0]], [arr3[0]], c="#8262AB", marker='o')
@@ -216,12 +209,14 @@ if __name__ == "__main__":
         arr2 = sats[:, i, 1][sim_time < sat_period]/1e3
         arr3 = sats[:, i, 2][sim_time < sat_period]/1e3
 
-        np.savetxt(f"data/figure1_sats_{i}.csv", np.column_stack((arr1, arr2, arr3)), delimiter=",")
+        if save:
+            np.savetxt(f"data/figure1_sats_{i}.csv", np.column_stack((arr1, arr2, arr3)), delimiter=",")
 
         ax.plot(arr1, arr2, arr3, c="#285FAC", linewidth=1)
         ax.plot([arr1[0]], [arr2[0]], [arr3[0]], c="#285FAC", marker="o")
 
-    plt.savefig("data/figure1")
+    if save:
+        plt.savefig("data/figure1")
         
     plt.figure(2, figsize=(10, 6), dpi=300)
     for i in range(targets_pos.shape[1]):
@@ -230,7 +225,8 @@ if __name__ == "__main__":
         arr1 = sim_time[np.logical_not(targets_in_sunlight[:, i])]/24/3600
         arr2 = charge[:, i][np.logical_not(targets_in_sunlight[:, i])]/cte.tar_battery_cap*100
 
-        np.savetxt(f"data/figure2_{i}.csv", np.column_stack((arr1, arr2)))
+        if save:
+            np.savetxt(f"data/figure2_{i}.csv", np.column_stack((arr1, arr2)))
 
         plt.plot(arr1, arr2, c="#285FAC")
 
@@ -242,20 +238,23 @@ if __name__ == "__main__":
 
         plt.yticks([80, 85, 90, 95, 100])
 
-    plt.savefig("data/figure2")
+    if save:
+        plt.savefig("data/figure2")
 
     plt.figure(3, dpi=300)      
     arr1 = sim_time/24/3600
     arr2 = n_targets[:, 0]
 
-    np.savetxt("data/figure3.csv", np.column_stack((arr1, arr2)))
+    if save:
+        np.savetxt("data/figure3.csv", np.column_stack((arr1, arr2)))
 
     plt.plot(arr1, arr2, c="#285FAC")
 
     plt.xlabel("Time [days]")
     plt.ylabel("Number of eclipsed targets in view of satellite")
 
-    plt.savefig("data/figure3")
+    if save:
+        plt.savefig("data/figure3")
 
     plt.figure(4, dpi=300)
     for i in range(targets_pos.shape[1]):
@@ -264,7 +263,8 @@ if __name__ == "__main__":
         arr1 = sim_time[np.logical_not(targets_in_sunlight[:, i])]/24/3600
         arr2 = np.sum(contact[:, i], axis=1)[np.logical_not(targets_in_sunlight[:, i])]
 
-        np.savetxt(f"data/figure4_{i}.csv", np.column_stack((arr1, arr2)))
+        if save:
+            np.savetxt(f"data/figure4_{i}.csv", np.column_stack((arr1, arr2)))
 
         plt.plot(arr1, arr2, c="#285FAC")
 
@@ -274,9 +274,11 @@ if __name__ == "__main__":
         if i in [0, 3]:
             plt.ylabel("Satellites in view during eclipse [-]")
 
-    plt.savefig("data/figure4")
+    if save:
+        plt.savefig("data/figure4")
 
-    # plt.show()
+    if not save:
+        plt.show()
 
     duty_cycle = n_targets[:, 0][n_targets[:, 0]>0].shape[0]/n_targets.shape[0]
     print(f"Duty cycle sat_0 = {duty_cycle}")

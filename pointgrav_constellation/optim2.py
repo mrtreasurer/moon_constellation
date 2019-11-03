@@ -8,10 +8,10 @@ import constants as cte
 from optim_class import Coverage, initiate
 
 
-sim_time, sun, targets = initiate()
-coverage = Coverage(sim_time, sun, targets, cte.r_m, cte.mu_m, cte.dt, cte.min_elev, cte.max_sat_range, cte.ecc, cte.aop, cte.tar_battery_cap, cte.tar_charge_power, cte.sat_las_power, cte.tar_hib_power, cte.sat_point_acc, cte.tar_r_rec, cte.sat_n_las, cte.sat_n_geom, cte.tar_n_rec, cte.sat_wavelength, cte.sat_r_trans)
+sim_time, sun, targets = initiate(cte.target_coors, cte.sun_pos0, cte.omega_earth, cte.omega_moon, cte.dt, cte.synodic_period)
+coverage = Coverage(sim_time, sun, targets, cte.r_m, cte.mu_m, cte.dt, cte.min_elev, cte.max_sat_range, cte.ecc, cte.aop, cte.tar_battery_cap, cte.tar_charge_power, cte.sat_las_power, cte.tar_hib_power, cte.tar_max_sps_power, cte.sat_point_acc, cte.tar_r_rec, cte.sat_n_las, cte.sat_n_geom, cte.tar_n_rec, cte.sat_wavelength, cte.sat_r_trans)
 
-res = minimize(coverage.fitness_2d, np.array([2.46750578e6, 1.00635172e0]), (4, 1), method="Nelder-Mead")
+res = minimize(coverage.fitness_2d, np.array([2.48790471e6, 9.84429024e-1]), (4, 1), method="Nelder-Mead")
 print(res.x, res.fun)
 
 # sats = coverage.create_constellation(res.x[0], res.x[1], 4, 1)

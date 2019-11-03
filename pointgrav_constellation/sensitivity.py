@@ -18,7 +18,7 @@ inc_results = np.zeros((inc_range.shape[0], 2))
 for j, inc in enumerate(inc_range):
     print(f"\rInlination: {round(np.degrees(inc), 2)} deg", end="")
 
-    sats = coverage.create_constellation(cte.optim_sma, cte.optim_inc, cte.optim_n_planes, cte.optim_n_sats_plane)
+    sats = coverage.create_constellation(cte.optim_sma, inc, cte.optim_n_planes, cte.optim_n_sats_plane)
     charge, dist, eff, contact, targets_in_sunlight, n_targets = coverage.propagate_constellation(sats, cte.optim_sma)
 
     inc_results[j] = [np.mean(charge), np.min(charge)]
@@ -32,10 +32,10 @@ sma_results = np.zeros((sma_range.shape[0], 2))
 for i, sma in enumerate(sma_range):
     print(f"\rSemi-major Axis: {round(sma/1e3, 2)} km", end="")
 
-    sats = coverage.create_constellation(cte.optim_sma, cte.optim_inc, cte.optim_n_planes, cte.optim_n_sats_plane)
-    charge, dist, eff, contact, targets_in_sunlight, n_targets = coverage.propagate_constellation(sats, cte.optim_sma)
+    sats = coverage.create_constellation(sma, cte.optim_inc, cte.optim_n_planes, cte.optim_n_sats_plane)
+    charge, dist, eff, contact, targets_in_sunlight, n_targets = coverage.propagate_constellation(sats, sma)
 
-    sma_results[j] = [np.mean(charge), np.min(charge)]
+    sma_results[i] = [np.mean(charge), np.min(charge)]
 
 np.savetxt("data/sma_sensitivity.csv", sma_results, delimiter=",")
 print("\rSemi-major Axis analysis finished")
