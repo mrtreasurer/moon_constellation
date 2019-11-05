@@ -145,9 +145,9 @@ class Coverage:
     #    sats_in_sunlight = (cos_sun_angle_s > 0) + (np.sqrt(1 - cos_sun_angle_s**2) > r_m/sma)
     
         n_targets = np.sum(contact * np.logical_not(targets_in_sunlight)[:, :, None], axis=1)
-        # sps_power = np.sum((eff * self.sat_las_power / np.clip(np.transpose([n_targets]*eff.shape[1], (1, 0, 2)), 1, np.inf)) * contact, axis=2) * np.logical_not(targets_in_sunlight)
+        sps_power = np.sum((eff * self.sat_las_power / np.clip(np.transpose([n_targets]*eff.shape[1], (1, 0, 2)), 1, np.inf)) * contact, axis=2) * np.logical_not(targets_in_sunlight)
         
-        sps_power = np.clip(np.sum((eff * self.sat_las_power / np.clip(np.transpose([n_targets]*eff.shape[1], (1, 0, 2)), 1, np.inf)) * contact, axis=2) * np.logical_not(targets_in_sunlight), 0, self.tar_max_sps_power)
+        # sps_power = np.clip(np.sum((eff * self.sat_las_power / np.clip(np.transpose([n_targets]*eff.shape[1], (1, 0, 2)), 1, np.inf)) * contact, axis=2) * np.logical_not(targets_in_sunlight), 0, self.tar_max_sps_power)
 
         target_charge = np.empty((self.targets.shape[0:2]))
         target_charge[0] = self.tar_battery_cap
