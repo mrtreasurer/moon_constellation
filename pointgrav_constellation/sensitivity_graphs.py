@@ -13,7 +13,7 @@ sma_data = np.genfromtxt("data/sma_sensitivity.csv", delimiter=",")
 inc_data = inc_data[inc_data[:, 2] != 0]
 sma_data = sma_data[sma_data[:, 2] != 0]
 
-plt.figure(1)
+plt.figure(1, dpi=300)
 plt.title("Constellation Sensitivity to Variation in Inclination")
 plt.xlabel("Inclination [deg]")
 plt.ylabel("Battery charge [%]")
@@ -26,9 +26,9 @@ plt.plot(inc_data[:, 0]*180/np.pi, inc_data[:, 2]/cte.tar_battery_cap*100, c="#2
 plt.legend(loc="lower left")
 
 if save:
-    plt.savefig("data/inc_senstivity")
+    plt.savefig("data/inc_sensitivity")
 
-plt.figure(2)
+plt.figure(2, dpi=300)
 plt.title("Constellation Sensitivity to Variaiton in Semi-Major Axis")
 plt.xlabel("Semi-Major Axis [km]")
 plt.ylabel("Battery charge [%]")
