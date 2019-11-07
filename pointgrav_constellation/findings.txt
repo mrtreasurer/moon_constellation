@@ -1,0 +1,11 @@
+
+1   no extra tars close to the four originally grouped
+2   one extra target in the zone eliminates the option immediately. constellation is bad for extra targets at high latitudes (75+ deg). two extra there doesn't work with the ones already there. Some targets live in the death zone
+3   (high positive) latitudes with longitude far from death zone work.
+4   death zone got a lot bigger. solutions in a circle around death zone
+5   very similar
+6   low southern latitudes (-15), northern latitudes similar to death zone left and right. big dip in solutions
+7   homogeneous distribution of infeasible solutions. global spread becomes very important
+8   2 solutions remaining. separation of targets order of 30 deg earth centered angle. gets smaller if density of targets in region is lower
+9   no solutions
+10

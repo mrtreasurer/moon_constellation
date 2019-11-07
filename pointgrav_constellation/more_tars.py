@@ -16,9 +16,9 @@ n_sats_plane = 1
 sat_period = 2*np.pi * np.sqrt(sma**3/cte.mu_m)
 
 extra_tars = 12
-iterations = 50
+iterations = 100
 
-results = np.zeros((extra_tars*iterations, 4))
+results = np.zeros((extra_tars*iterations, 5))
 
 for extra in range(1, extra_tars+1):
     total_tars = cte.target_coors.shape[0] + extra
@@ -49,102 +49,12 @@ for extra in range(1, extra_tars+1):
         charge, dist, eff, contact, targets_in_sunlight, n_targets = coverage.propagate_constellation(sats, sma)
 
         if np.min(charge) > 0.1*cte.tar_battery_cap:
-            np.savetxt(f"data/tars/targets_{extra}_{iteration}.csv", np.array(new_coors)[:,1::], delimiter=",")
+            success = True
 
-            # plt.figure(1, dpi=300, clear=True)
-            # ax = plt.axes(projection='3d')
-
-            # ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-            # ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-            # ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-
-            # ax.set_xlabel("x [km]")
-            # ax.set_ylabel("y [km]")
-            # ax.set_zlabel("z [km]")
-
-            # ax.xaxis.set_rotate_label(False)
-            # ax.yaxis.set_rotate_label(False)
-            # ax.zaxis.set_rotate_label(False)
-
-            # ax.yaxis.set_label_coords(1000, 1000)
-
-            # for i in range(targets_pos.shape[1]):
-            #     arr1 = targets_pos[::100, i, 0]/1e3
-            #     arr2 = targets_pos[::100, i, 1]/1e3
-            #     arr3 = targets_pos[::100, i, 2]/1e3
-
-            #     # np.savetxt(f"data/figure1_targets_{i}.csv", np.column_stack((arr1, arr2, arr3)), delimiter=",")
-
-            #     ax.plot(arr1, arr2, arr3, c='#8262AB', linewidth=1)
-            #     ax.plot([arr1[0]], [arr2[0]], [arr3[0]], c="#8262AB", marker='o')
-
-            # for i in range(sats.shape[1]):
-            #     arr1 = sats[:, i, 0][sim_time < sat_period]/1e3
-            #     arr2 = sats[:, i, 1][sim_time < sat_period]/1e3
-            #     arr3 = sats[:, i, 2][sim_time < sat_period]/1e3
-
-            #     # np.savetxt(f"data/figure1_sats_{i}.csv", np.column_stack((arr1, arr2, arr3)), delimiter=",")
-
-            #     ax.plot(arr1, arr2, arr3, c="#285FAC", linewidth=1)
-            #     ax.plot([arr1[0]], [arr2[0]], [arr3[0]], c="#285FAC", marker="o")
-
-            # plt.savefig(f"data/tars/figure1_{extra}_{iteration}")
-                
-            # plt.figure(2, dpi=300, clear=True)
-            # for i in range(total_tars):
-            #     plt.subplot(total_tars//3 + 1, 3, i + 1)
-
-            #     arr1 = sim_time[np.logical_not(targets_in_sunlight[:, i])]/24/3600
-            #     arr2 = charge[:, i][np.logical_not(targets_in_sunlight[:, i])]/cte.tar_battery_cap*100
-
-            #     # np.savetxt(f"data/figure2_{i}.csv", np.column_stack((arr1, arr2)))
-
-            #     plt.plot(arr1, arr2, c="#285FAC")
-
-            #     if i in [3, 4, 5]:
-            #         plt.xlabel("Time [days]")
-                
-            #     if i%3 == 0:
-            #         plt.ylabel("Battery charge [%]")
-
-            #     # plt.yticks([80, 85, 90, 95, 100])
-
-            # plt.savefig(f"data/tars/figure2_{extra}_{iteration}")
-
-            # plt.figure(3, dpi=300, clear=True)      
-            # arr1 = sim_time/24/3600
-            # arr2 = n_targets[:, 0]
-
-            # # np.savetxt("data/figure3.csv", np.column_stack((arr1, arr2)))
-
-            # plt.plot(arr1, arr2, c="#285FAC")
-
-            # plt.xlabel("Time [days]")
-            # plt.ylabel("Number of eclipsed targets in view of satellite")
-
-            # plt.savefig(f"data/tars/figure3_{extra}_{iteration}")
-
-            # plt.figure(4, dpi=300, clear=True)
-            # for i in range(total_tars):
-            #     plt.subplot(total_tars//3 + 1, 3, i + 1)
-
-            #     arr1 = sim_time[np.logical_not(targets_in_sunlight[:, i])]/24/3600
-            #     arr2 = np.sum(contact[:, i], axis=1)[np.logical_not(targets_in_sunlight[:, i])]
-
-            #     # np.savetxt(f"data/figure4_{i}.csv", np.column_stack((arr1, arr2)))
-
-            #     plt.plot(arr1, arr2, c="#285FAC")
-
-            #     if i in [3, 4, 5]:
-            #         plt.xlabel("Time [days]")
-                
-            #     if i%3 == 0:
-            #         plt.ylabel("Satellites in view during eclipse [-]")
-
-            # plt.savefig(f"data/tars/figure4_{extra}_{iteration}")
-
-            # plt.show()
-
-            results[iterations*(extra - 1) + iteration] = [extra, iteration, np.mean(charge), np.min(charge)]
+        else:
+            success = False
+        
+        np.savetxt(f"data/tars/targets_{extra}_{iteration}.csv", np.array(new_coors)[:,1::], delimiter=",")
+        results[iterations*(extra - 1) + iteration] = [success, extra, iteration, np.mean(charge), np.min(charge)]
 
 np.savetxt("data/more_tars_results.csv", results, delimiter=",")
